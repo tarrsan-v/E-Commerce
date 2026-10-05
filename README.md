@@ -1,3 +1,7 @@
+**THIS IS A UNIVERSITY ACADEMIC PROJECT**
+
+**THIS PROJECT IS STILL UNDER DEVELOPMENT** 
+
 # ShopEase – two Vercel deployments, one shared database
 
 customer/  -> Vercel project 1 (Root Directory = customer)
@@ -15,3 +19,12 @@ Each folder has its own copy of api/index.js; both talk to the SAME Redis databa
 5. Redeploy both projects.
 
 Customer site: open "/" then Start Shopping. Admin site: its own URL, login page.
+
+
+**AUTHOR/DEVELOPER** 
+
+Tarrsan Vijay 
+
+3rd Year in MTech Software Engineering [5 years integrated PG], 
+
+Vellore Institute of Technology, Vellore
