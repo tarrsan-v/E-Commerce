@@ -1,0 +1,9 @@
+{
+  "name": "aura-luxe-ecommerce",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mindful Lifestyle E-Commerce with Spending Limit and Separate Admin Portal",
+  "scripts": {
+    "start": "serve ."
+  }
+}
