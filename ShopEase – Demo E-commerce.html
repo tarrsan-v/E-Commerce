@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ShopEase – Demo Store</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#1b1f2a;--mu:#6b7280;--ac:#4f46e5;--bd:#e5e7eb;--er:#dc2626;--ok:#16a34a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12141c;--card:#1c1f2b;--tx:#e8eaf0;--mu:#9aa1b2;--bd:#2c3040}}
+:root[data-theme="dark"]{--bg:#12141c;--card:#1c1f2b;--tx:#e8eaf0;--mu:#9aa1b2;--bd:#2c3040}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+header h1{font-size:20px;margin:0;flex:1}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px}
+button,.btn{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:8px 14px;font:inherit;cursor:pointer}
+button.sec{background:transparent;color:var(--tx);border:1px solid var(--bd)}
+button.del{background:var(--er)}button.on{background:var(--ac);color:#fff}
+input,select{width:100%;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit}
+label{display:block;font-size:13px;color:var(--mu);margin:10px 0 4px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.row>button{flex:0 0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-top:12px}
+.p{text-align:center}.p .e{font-size:44px}.p b{display:block}.mu{color:var(--mu);font-size:13px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd)}
+.tw{overflow-x:auto}
+.hero{text-align:center;padding:60px 16px}.hero h2{font-size:34px;margin:8px 0}
+#modal{position:fixed;inset:0;background:#0007;display:none;align-items:center;justify-content:center;padding:16px;z-index:9}
+#modal .card{max-width:380px;width:100%}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:10;max-width:90%}
+.otp{background:var(--bg);border:1px dashed var(--ac);border-radius:8px;padding:10px;margin:10px 0;text-align:center}
+.otp b{font-size:24px;letter-spacing:4px}
+.bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin:6px 0}.bar i{display:block;height:100%;background:var(--ok)}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<div id="modal"><div class="card" id="mbox"></div></div>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rd=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const wr=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let db=rd('se_db',null)||{products:[
+ {id:1,name:'Wireless Earbuds',price:1999,stock:20,emoji:'🎧',cat:'Electronics'},
+ {id:2,name:'Running Shoes',price:2499,stock:15,emoji:'👟',cat:'Fashion'},
+ {id:3,name:'Coffee Mug',price:299,stock:50,emoji:'☕',cat:'Home'},
+ {id:4,name:'Backpack',price:1299,stock:12,emoji:'🎒',cat:'Fashion'},
+ {id:5,name:'Desk Lamp',price:899,stock:8,emoji:'💡',cat:'Home'},
+ {id:6,name:'Smart Watch',price:3999,stock:5,emoji:'⌚',cat:'Electronics'}],users:[],orders:[],nid:7};
+const save=()=>wr('se_db',db);
+let admin=rd('se_admin',false),cust=rd('se_cust',null),view='shop',q='',cart={},mode='login',pend=null,otp='',edit=null;
+
+function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',2800)}
+function modal(h){$('#mbox').innerHTML=h;$('#modal').style.display='flex'}
+function closeM(){$('#modal').style.display='none'}
+const inr=n=>'₹'+Number(n).toLocaleString('en-IN');
+
+function route(){const h=location.hash;if(h==='#/admin')adminView();else if(h==='#/customer')custView();else landing()}
+window.onhashchange=route;
+
+/* ---------- Landing (no login shown) ---------- */
+function landing(){
+ $('#app').innerHTML=`<div class="hero"><div style="font-size:56px">🛍️</div><h2>Welcome to ShopEase</h2>
+ <p class="mu">Your demo store for electronics, fashion and home essentials.</p>
+ <a class="btn" href="#/customer" style="text-decoration:none;display:inline-block">Start Shopping</a></div>
+ <div class="grid">${db.products.slice(0,4).map(p=>`<div class="card p"><div class="e">${esc(p.emoji)}</div><b>${esc(p.name)}</b><span class="mu">${inr(p.price)}</span></div>`).join('')}</div>`;
+}
+
+/* ---------- Customer ---------- */
+const me=()=>db.users.find(u=>u.phone===cust);
+function custView(){
+ if(!me()){cust=null;wr('se_cust',null);return authView()}
+ const n=Object.values(cart).reduce((a,b)=>a+b,0);
+ $('#app').innerHTML=`<header><h1>🛍️ ShopEase</h1>
+  ${['shop','cart','profile','orders'].map(v=>`<button class="sec ${view===v?'on':''}" onclick="view='${v}';custView()">${v==='cart'?'Cart ('+n+')':v[0].toUpperCase()+v.slice(1)}</button>`).join('')}
+  <button class="sec" onclick="cust=null;wr('se_cust',null);cart={};location.hash='#/'">Logout</button></header><div id="body"></div>`;
+ const b=$('#body');
+ if(view==='shop'){
+  b.innerHTML=`<div class="row"><input id="q" placeholder="Search items…" value="${esc(q)}" oninput="q=this.value;grid()"><button onclick="walletM()">💰 Wallet</button></div><div class="grid" id="grid"></div>`;grid();
+ }else if(view==='cart')cartView(b);
+ else if(view==='profile'){const u=me();
+  b.innerHTML=`<div class="card"><h3 style="margin-top:0">My Profile</h3>
+  <label>Phone</label><input value="${esc(u.phone)}" disabled>
+  <label>Name</label><input id="pn" value="${esc(u.name)}">
+  <label>Email</label><input id="pe" value="${esc(u.email||'')}" placeholder="you@example.com">
+  <label>Address</label><input id="pa" value="${esc(u.address||'')}" placeholder="Delivery address">
+  <p><button onclick="saveProf()">Save profile</button></p></div>`;
+ }else{const os=db.orders.filter(o=>o.phone===cust).reverse();
+  b.innerHTML=`<div class="card"><h3 style="margin-top:0">My Orders</h3>${os.length?`<div class="tw"><table><tr><th>Date</th><th>Items</th><th>Total</th></tr>${os.map(o=>`<tr><td>${new Date(o.ts).toLocaleString()}</td><td>${esc(o.items)}</td><td>${inr(o.total)}</td></tr>`).join('')}</table></div>`:'<p class="mu">No orders yet.</p>'}</div>`;}
+}
+function grid(){const s=q.toLowerCase();const l=db.products.filter(p=>(p.name+' '+p.cat).toLowerCase().includes(s));
+ $('#grid').innerHTML=l.length?l.map(p=>`<div class="card p"><div class="e">${esc(p.emoji)}</div><b>${esc(p.name)}</b><span class="mu">${esc(p.cat)} · ${p.stock} left</span><div style="margin:6px 0"><b>${inr(p.price)}</b></div>
+ <button ${p.stock<1?'disabled':''} onclick="add(${p.id})">${p.stock<1?'Out of stock':'Add to cart'}</button></div>`).join(''):'<p class="mu">No items found.</p>'}
+function add(id){const p=db.products.find(x=>x.id===id);if((cart[id]||0)>=p.stock)return toast('No more stock');cart[id]=(cart[id]||0)+1;toast('Added to cart');custView()}
+function total(){return Object.entries(cart).reduce((t,[id,n])=>t+n*(db.products.find(p=>p.id==id)?.price||0),0)}
+function cartView(b){const e=Object.entries(cart).filter(([id])=>db.products.some(p=>p.id==id));
+ b.innerHTML=`<div class="card"><h3 style="margin-top:0">Cart</h3>${e.length?`<div class="tw"><table>${e.map(([id,n])=>{const p=db.products.find(x=>x.id==id);return`<tr><td>${esc(p.emoji)} ${esc(p.name)}</td><td>${inr(p.price)} × ${n}</td><td><button class="sec" onclick="cart[${id}]--;if(!cart[${id}])delete cart[${id}];custView()">−</button></td></tr>`}).join('')}</table></div>
+ <p><b>Total: ${inr(total())}</b></p><button onclick="checkout()">Checkout</button>`:'<p class="mu">Your cart is empty.</p>'}</div>`}
+function periodStart(per){const d=new Date();d.setHours(0,0,0,0);if(per==='week')d.setDate(d.getDate()-((d.getDay()+6)%7));if(per==='month')d.setDate(1);return d.getTime()}
+function spent(u){return db.orders.filter(o=>o.phone===u.phone&&o.ts>=periodStart(u.limit.per)).reduce((a,o)=>a+o.total,0)}
+function checkout(){const u=me(),t=total();if(!t)return;
+ if(u.limit){const rem=u.limit.amt-spent(u);
+  if(rem<=0)return toast('Wallet limit reached. Modify your limit to continue.');
+  if(t>rem)return toast('Order '+inr(t)+' exceeds remaining limit '+inr(rem)+'. Modify your limit.')}
+ const names=[];for(const [id,n] of Object.entries(cart)){const p=db.products.find(x=>x.id==id);if(!p||p.stock<n)return toast('Stock changed for '+(p?p.name:'an item'));names.push(p.name+' ×'+n)}
+ for(const [id,n] of Object.entries(cart))db.products.find(x=>x.id==id).stock-=n;
+ db.orders.push({phone:u.phone,ts:Date.now(),items:names.join(', '),total:t});save();cart={};view='orders';toast('Order placed!');custView()}
+function walletM(){const u=me(),l=u.limit;const s=l?spent(u):0;
+ modal(`<h3 style="margin-top:0">💰 Wallet Limit</h3>
+ <label>Limit period</label><select id="wp">${['day','week','month'].map(x=>`<option value="${x}" ${l&&l.per===x?'selected':''}>Per ${x}</option>`).join('')}</select>
+ <label>Limit amount (₹)</label><input id="wa" type="number" min="1" value="${l?l.amt:''}" placeholder="e.g. 5000">
+ ${l?`<p class="mu">Spent this ${l.per}: ${inr(s)} of ${inr(l.amt)}</p><div class="bar"><i style="width:${Math.min(100,s/l.amt*100)}%"></i></div><p class="mu">${s>=l.amt?'⚠️ Limit reached – purchases are blocked until you raise the limit.':'Remaining: '+inr(l.amt-s)}</p>`:'<p class="mu">No limit set yet.</p>'}
+ <div class="row"><button onclick="saveLimit()">Save limit</button><button class="sec" onclick="closeM()">Close</button></div>`)}
+function saveLimit(){const a=+$('#wa').value;if(!(a>0))return toast('Enter a valid amount');me().limit={per:$('#wp').value,amt:a};save();closeM();toast('Limit updated')}
+function saveProf(){const u=me();u.name=$('#pn').value.trim()||u.name;u.email=$('#pe').value.trim();u.address=$('#pa').value.trim();save();toast('Profile saved')}
+
+/* ---------- Customer auth (phone + fake OTP) ---------- */
+function authView(){
+ $('#app').innerHTML=`<header><h1>🛍️ ShopEase</h1><button class="sec" onclick="location.hash='#/'">Home</button></header>
+ <div class="card" style="max-width:400px;margin:20px auto"><div class="row">
+ <button class="sec ${mode==='login'?'on':''}" onclick="mode='login';authView()">Login</button><button class="sec ${mode==='signup'?'on':''}" onclick="mode='signup';authView()">Sign up</button></div>
+ ${mode==='signup'?'<label>Full name</label><input id="an" placeholder="Your name">':''}
+ <label>Phone number</label><input id="ap" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number">
+ <p><button style="width:100%" onclick="sendOtp()">Send OTP</button></p></div>`}
+function sendOtp(){const ph=$('#ap').value.trim(),nm=mode==='signup'?$('#an').value.trim():'';
+ if(!/^\d{10}$/.test(ph))return toast('Enter a valid 10-digit phone number');
+ const ex=db.users.find(u=>u.phone===ph);
+ if(mode==='login'&&!ex)return toast('No account found. Please sign up.');
+ if(mode==='signup'){if(ex)return toast('Account exists. Please login.');if(!nm)return toast('Enter your name')}
+ pend={ph,nm};otp=String(Math.floor(100000+Math.random()*900000));
+ modal(`<h3 style="margin-top:0">📱 Verify phone</h3><div class="otp"><div class="mu">Simulated SMS to +91 ${esc(ph)}</div>Your OTP is <b>${otp}</b></div>
+ <input id="oi" inputmode="numeric" maxlength="6" placeholder="Enter 6-digit OTP"><p class="row"><button onclick="verify()">Verify</button><button class="sec" onclick="closeM()">Cancel</button></p>`)}
+function verify(){if($('#oi').value.trim()!==otp)return toast('Incorrect OTP');
+ if(mode==='signup'){db.users.push({phone:pend.ph,name:pend.nm,email:'',address:'',limit:null});save()}
+ cust=pend.ph;wr('se_cust',cust);closeM();view='shop';toast('Welcome!');custView()}
+
+/* ---------- Admin (hidden URL: #/admin) ---------- */
+function adminView(){
+ if(!admin){$('#app').innerHTML=`<div class="card" style="max-width:380px;margin:40px auto"><h3 style="margin-top:0">Admin Login</h3>
+  <label>Email</label><input id="ae" type="email" placeholder="admin email"><label>Password</label><input id="ax" type="password">
+  <p><button style="width:100%" onclick="adminLogin()">Login</button></p></div>`;return}
+ const p=edit?db.products.find(x=>x.id===edit):null;
+ $('#app').innerHTML=`<header><h1>🛠️ Admin Panel</h1><span class="mu">${db.orders.length} orders · ${db.users.length} customers</span><button class="sec" onclick="admin=false;wr('se_admin',false);adminView()">Logout</button></header>
+ <div class="card"><h3 style="margin-top:0">${p?'Modify item':'Add item'}</h3>
+ <div class="row"><input id="fn" placeholder="Name" value="${esc(p?.name)}"><input id="fc" placeholder="Category" value="${esc(p?.cat)}"></div>
+ <div class="row" style="margin-top:8px"><input id="fp" type="number" min="0" placeholder="Price" value="${p?p.price:''}"><input id="fs" type="number" min="0" placeholder="Stock" value="${p?p.stock:''}"><input id="fe" placeholder="Emoji" value="${esc(p?.emoji||'📦')}"></div>
+ <p class="row"><button onclick="saveItem()">${p?'Update':'Add'}</button>${p?'<button class="sec" onclick="edit=null;adminView()">Cancel</button>':''}</p></div>
+ <div class="card tw" style="margin-top:12px"><table><tr><th></th><th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th></th></tr>
+ ${db.products.map(x=>`<tr><td>${esc(x.emoji)}</td><td>${esc(x.name)}</td><td>${esc(x.cat)}</td><td>${inr(x.price)}</td><td>${x.stock}</td>
+ <td style="white-space:nowrap"><button class="sec" onclick="edit=${x.id};adminView();scrollTo(0,0)">Edit</button> <button class="del" onclick="delItem(${x.id})">Delete</button></td></tr>`).join('')}</table></div>`}
+function adminLogin(){if($('#ae').value.trim().toLowerCase()==='admin@gmail.com'&&$('#ax').value==='password'){admin=true;wr('se_admin',true);adminView()}else toast('Invalid admin credentials')}
+function saveItem(){const n=$('#fn').value.trim(),pr=+$('#fp').value,st=+$('#fs').value;
+ if(!n||!(pr>=0)||$('#fp').value===''||!(st>=0))return toast('Fill name, price and stock');
+ const o={name:n,cat:$('#fc').value.trim()||'General',price:pr,stock:st,emoji:$('#fe').value.trim()||'📦'};
+ if(edit)Object.assign(db.products.find(x=>x.id===edit),o);else db.products.push({id:db.nid++,...o});
+ edit=null;save();adminView();toast('Saved')}
+function delItem(id){db.products=db.products.filter(x=>x.id!==id);if(edit===id)edit=null;save();adminView()}
+
+route();
+</script>
+</body>
+</html>
